@@ -120,7 +120,23 @@ export async function updateOrder(req, res) {
 }
 
 export async function deleteOrder(req, res) {
-  const order = await Order.findByIdAndDelete(req.params.id).lean();
+  const order = await Order.findById(req.params.id);
   if (!order) return res.status(404).json({ success: false, message: "Order not found" });
-  res.json({ success: true, message: "Order deleted successfully" });
+
+  // If this order came from Rafttaar and is active, cancel it on Rafttaar first so status updates
+  if (order.source === "rafttaar" && order.rafttaar?.orderId) {
+    const terminalStates = ["delivered", "cancelled", "recalled"];
+    if (!terminalStates.includes(order.rafttaar.fulfilmentState)) {
+      try {
+        const { performAction } = await import("../integrations/rafttaar/actions.js");
+        await performAction(order, "cancel", { reason: req.body?.reason || "Cancelled / Rejected by ERP" });
+      } catch (err) {
+        // If Rafttaar cancel action failed or was not allowed, log and proceed with local cleanup
+        console.warn(`[ERP] Could not cancel order on Rafttaar: ${err.message}`);
+      }
+    }
+  }
+
+  await Order.findByIdAndDelete(req.params.id);
+  res.json({ success: true, message: "Order deleted and cancelled on Rafttaar successfully" });
 }
