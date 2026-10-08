@@ -41,14 +41,18 @@ async function mountRafttaarPanel(order, refreshModal) {
   const done = TERMINAL.includes(state);
   const btn = (id, label, cls = "secondary") => `<button class="${cls}" data-act="${id}">${E(label)}</button>`;
 
+const INVOICE_CREATION_UI = false;
+
   const buttons = [];
   if (state === "pushed") buttons.push(btn("acknowledge", "Acknowledge", "primary"));
   if (!done && state !== "pushed") {
     if (allowed.has("confirmed")) buttons.push(btn("confirmed", "Confirm"));
     if (allowed.has("packaging")) buttons.push(btn("packaging", "Mark packaging"));
     if (allowed.has("delayed")) buttons.push(btn("delayed", "Mark delayed"));
-    if (!activeInvoice) buttons.push(btn("invoice", "Create invoice"));
-    else if (!["dispatched", "delivered"].includes(state)) buttons.push(btn("void", "Void invoice"));
+    if (INVOICE_CREATION_UI) {
+      if (!activeInvoice) buttons.push(btn("invoice", "Create invoice"));
+      else if (!["dispatched", "delivered"].includes(state)) buttons.push(btn("void", "Void invoice"));
+    }
     if (allowed.has("dispatched") || ["acknowledged", "confirmed", "packaging", "delayed"].includes(state)) buttons.push(btn("dispatch", "Dispatch", "primary"));
     if (allowed.has("cancelled")) buttons.push(btn("cancel", "Cancel order"));
   }
