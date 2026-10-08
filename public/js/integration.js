@@ -53,7 +53,9 @@ async function mountRafttaarPanel(order, refreshModal) {
     if (allowed.has("cancelled")) buttons.push(btn("cancel", "Cancel order"));
   }
   buttons.push(btn("refresh", "Refresh from Rafttaar"));
-  if (sh.id) buttons.push(btn("tracking", "Tracking"), btn("label", "Shipping label"));
+  if (sh.id || sh.awbNumber || ["dispatched", "delivered"].includes(state)) {
+    buttons.push(btn("tracking", "Tracking"), btn("label", "Shipping label"));
+  }
 
   host.innerHTML = `
     <h3>Rafttaar</h3>
@@ -130,11 +132,20 @@ async function mountRafttaarPanel(order, refreshModal) {
     void: () =>
       showForm(`<label class="field full">Reason<input name="reason" placeholder="Corrected GST rate"></label>`, (f) => run("invoice/void", { reason: f.reason }, "Invoice voided")),
     dispatch: () => {
+      const addr = order.shippingAddress || {};
+      const addrText = [addr.addressLine1, addr.addressLine2, `${addr.city || ""}, ${addr.state || ""} ${addr.pincode || ""}`, addr.country || "India"]
+        .filter(Boolean)
+        .join(" · ");
       const itemsList = (order.items || [])
         .map((it) => `<div class="sub" style="margin-bottom:6px;padding:4px 8px;background:var(--bg-subtle,#f4f5f7);border-radius:4px;">📦 <b>${E(it.productName)}</b> ${it.sku ? `(SKU: ${E(it.sku)})` : ""} — <b>Qty: ${E(it.quantity)}</b></div>`)
         .join("");
       showForm(
         `<div class="form-section full" style="margin-bottom:12px">
+           <div style="padding:8px 12px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:6px;margin-bottom:10px;">
+             <div style="font-weight:600;color:#0369a1;margin-bottom:2px;">📍 Ship-To Delivery Address:</div>
+             <div style="color:#0f172a;font-size:13px;">${E(addrText || "No address provided")}</div>
+             <div class="sub" style="margin-top:2px;">Recipient: <b>${E(order.customer?.name || "Customer")}</b> (📞 ${E(order.customer?.phone || "—")})</div>
+           </div>
            <label class="field full" style="font-weight:600;margin-bottom:6px;">Items to Dispatch (${(order.items || []).length}):</label>
            ${itemsList || '<p class="sub">No item details</p>'}
          </div>
